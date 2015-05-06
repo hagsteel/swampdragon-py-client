@@ -29,7 +29,8 @@ class DragonClient(object):
         self.url = '{}{}/{}/websocket'.format(url, self._rand_int(), self._rand_string())
         self.call_queue = []
         self.is_connected = False
-        self.callbacks = []
+        self.callbacks = {}
+        self.callback_index = 0
         self.on_channel_message = on_channel_message
         self.on_exception = on_exception
 
@@ -75,8 +76,8 @@ class DragonClient(object):
         if context:
             callback_name = context.get('client_callback_name')
             if callback_name:
-                cb = int(callback_name[3:])
-                callback = self.callbacks.pop(int(cb))
+                cb_key = int(callback_name[3:])
+                callback = self.callbacks.pop(cb_key, None)
                 if callback:
                     callback(context, data)
         elif 'channel' in message and self.on_channel_message:
@@ -98,8 +99,9 @@ class DragonClient(object):
         self.ws.send(message)
 
     def call_router(self, verb, route, callback=None, **kwargs):
-        self.callbacks.append(callback)
-        callback_id = len(self.callbacks) - 1
+        self.callback_index += 1
+        callback_id = self.callback_index
+        self.callbacks[callback_id] = callback
         message = json.dumps({
             'verb': verb,
             'route': route,
